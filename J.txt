@@ -2,8 +2,8 @@ import requests
 import time
 from datetime import datetime
 
-API_URL = "http://127.0.0.1:5000/verify_pan"   # your local Flask API
-PAN = "ABCDE1234F"                             # fixed PAN you want to test
+API_URL = "http:verify_pan"   # your local Flask API
+PAN = ""                             # fixed PAN you want to test
 DELAY = 1                                      # seconds between calls (adjust as needed)
 TOTAL_CALLS = 1000                             # total iterations (set to any number)
 
