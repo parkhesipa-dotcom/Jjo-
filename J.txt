@@ -1,0 +1,31 @@
+import requests
+import time
+from datetime import datetime
+
+API_URL = "http://127.0.0.1:5000/verify_pan"   # your local Flask API
+PAN = "ABCDE1234F"                             # fixed PAN you want to test
+DELAY = 1                                      # seconds between calls (adjust as needed)
+TOTAL_CALLS = 1000                             # total iterations (set to any number)
+
+for i in range(1, TOTAL_CALLS + 1):
+    payload = {
+        "pan": PAN,
+        "lite": "Y",
+        "consent": "Y",
+        "clientData": {"caseId": f"CASE_{i}"}
+    }
+
+    start_time = time.time()
+    try:
+        res = requests.post(API_URL, json=payload, timeout=15)
+        duration = round(time.time() - start_time, 2)
+
+        if res.status_code == 200:
+            print(f"[{i}] ✅ {datetime.now()} | {res.status_code} | {duration}s")
+        else:
+            print(f"[{i}] ⚠️ {datetime.now()} | HTTP {res.status_code} | {res.text[:100]}")
+
+    except Exception as e:
+        print(f"[{i}] ❌ {datetime.now()} | ERROR: {e}")
+
+    time.sleep(DELAY)  # small delay between hits
