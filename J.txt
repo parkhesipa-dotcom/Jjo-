@@ -1,50 +1,79 @@
-import requests
-import concurrent.futures
-import time
-from datetime import datetime
+import base64, json, requests
+from Crypto.Cipher import AES, PKCS1_OAEP
+from Crypto.PublicKey import RSA
+from Crypto.Random import get_random_bytes
 
-API_URL = "http://127.0.0.1:5000/verify_pan"  # your API endpoint
-PAN = "ABCDE1234F"                            # fixed PAN to test
-TOTAL_REQUESTS = 100
-TARGET_DURATION = 60  # seconds (1 minute)
+# -----------------------------------------------------------
+# 🔹 Step 1: Input credentials and API details
+# -----------------------------------------------------------
 
-def hit_api(i):
-    payload = {
-        "pan": PAN,
-        "lite": "Y",
-        "consent": "Y",
-        "clientData": {"caseId": f"CASE_{i}"}
+
+# Paste your RBI public certificate (with BEGIN/END lines)
+
+
+# -----------------------------------------------------------
+# 🔹 Step 2: AES-GCM Encryption Function (matches Java code)
+# -----------------------------------------------------------
+def aes_gcm_encrypt(plain_text, key):
+    iv = get_random_bytes(12)  # 96-bit nonce for GCM
+    cipher = AES.new(key, AES.MODE_GCM, nonce=iv)
+    ciphertext, tag = cipher.encrypt_and_digest(plain_text.encode("utf-8"))
+    # Concatenate IV + Ciphertext + Tag → Base64
+    return base64.b64encode(iv + ciphertext + tag).decode("utf-8")
+
+# -----------------------------------------------------------
+# 🔹 Step 3: Generate AES Key (256-bit)
+# -----------------------------------------------------------
+aes_key = get_random_bytes(32)
+
+# -----------------------------------------------------------
+# 🔹 Step 4: Encrypt Client Auth Info
+# -----------------------------------------------------------
+client_auth_plain = f"{client_id}*{client_secret}"  # separator per spec
+encrypted_client_auth = aes_gcm_encrypt(client_auth_plain, aes_key)
+
+# -----------------------------------------------------------
+# 🔹 Step 5: Encrypt LRS Data Body
+# -----------------------------------------------------------
+data_body = [
+    {
+        "structureRefvo": {"code": "LRSDATA", "version": 1, "agencyID": "RBI"},
+        "obs": [{"pan": ["AAAPD5981D"]}]
     }
+]
+encrypted_body = aes_gcm_encrypt(json.dumps(data_body), aes_key)
 
-    start = time.time()
-    try:
-        r = requests.post(API_URL, json=payload, timeout=10)
-        return (i, r.status_code, round(time.time() - start, 2))
-    except Exception as e:
-        return (i, "ERR", str(e))
+# -----------------------------------------------------------
+# 🔹 Step 6: Encrypt AES Key with RBI Public Key (RSA-OAEP)
+# -----------------------------------------------------------
+public_key = RSA.import_key(rbi_public_cert)
+cipher_rsa = PKCS1_OAEP.new(public_key)
+rsa_encrypted_key = cipher_rsa.encrypt(aes_key)
+encrypted_key_data = base64.b64encode(rsa_encrypted_key).decode("utf-8")
 
-start_time = time.time()
-results = []
+# -----------------------------------------------------------
+# 🔹 Step 7: Construct Final Request Body
+# -----------------------------------------------------------
+final_body = {
+    "header": {
+        "authinfo": {
+            "LoginParams": ["CLIENT_AUTH_INFO", encrypted_client_auth],
+            "UserType": "SYSTEM",
+            "AuthenticationType": "API_AUTH",
+            "Key_data": encrypted_key_data
+        }
+    },
+    "body": {"LRS_body": encrypted_body}
+}
 
-print(f"🚀 Sending {TOTAL_REQUESTS} requests in ~{TARGET_DURATION}s ...")
+# -----------------------------------------------------------
+# 🔹 Step 8: Print and Send the Request
+# -----------------------------------------------------------
+print("✅ Final Encrypted Request Body:\n")
+print(json.dumps(final_body, indent=4))
 
-# Create a thread pool
-with concurrent.futures.ThreadPoolExecutor(max_workers=10) as executor:
-    futures = []
-    interval = TARGET_DURATION / TOTAL_REQUESTS  # delay per request
+headers = {"Content-Type": "application/json"}
+response = requests.post(api_url, headers=headers, json=final_body)
 
-    for i in range(TOTAL_REQUESTS):
-        futures.append(executor.submit(hit_api, i))
-        time.sleep(interval)  # evenly spread requests across 1 min
-
-    for f in concurrent.futures.as_completed(futures):
-        results.append(f.result())
-
-elapsed = round(time.time() - start_time, 2)
-
-# Summary
-success = sum(1 for r in results if r[1] == 200)
-fail = TOTAL_REQUESTS - success
-print(f"\n✅ Done in {elapsed}s — Success: {success}, Failed: {fail}")
-for r in results[:10]:
-    print(r)
+print("\n🔹 Response Status:", response.status_code)
+print("🔹 Response Body:", response.text)
