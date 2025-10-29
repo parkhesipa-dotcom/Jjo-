@@ -1,117 +1,12 @@
-# ------------------ Response Models ------------------
-
-from typing import Optional, List
-
-class Address(BaseModel):
-    buildingName: Optional[str] = None
-    locality: Optional[str] = None
-    streetName: Optional[str] = None
-    pinCode: Optional[str] = None
-    city: Optional[str] = None
-    state: Optional[str] = None
-    country: Optional[str] = None
-
-
-class Result(BaseModel):
-    pan: Optional[str] = None
-    name: Optional[str] = None
-    firstName: Optional[str] = None
-    middleName: Optional[str] = None
-    lastName: Optional[str] = None
-    gender: Optional[str] = None
-    aadhaarLinked: Optional[str] = None
-    aadhaarMatch: Optional[str] = None
-    dob: Optional[str] = None
-    address: Optional[Address] = None
-    profileMatch: Optional[List[str]] = None
-    authorizedSignatory: Optional[dict] = None
-
-
-class PANResponse(BaseModel):
-    statusCode: int
-    requestId: str
-    result: Result
-    clientData: ClientData
-
-
-
-from models.pan_model import PANResponse  # add on top
-
-...
-
-result = fetch_pan_details(
-    pan=pan_request.pan,
-    consent=pan_request.consent,
-    lite=pan_request.lite,
-    case_id=pan_request.clientData.caseId
-)
-
-# ✅ Validate response with Pydantic model
 validated_response = PANResponse(**result)
 
-return validated_response.model_dump(), 200
+            # ✅ Optional local business rule:
+            # If the API indicates missing consent or any failure status, return 400
+            if (
+                validated_response.statusCode != 101
+                or "Consent Missing" in str(result).title()
+            ):
+                return validated_response.model_dump(), 400
 
-
-
-
-
-
-
-
-from flask import request
-from flask_restful import Resource
-from pydantic import ValidationError
-from models.pan_model import PANRequest, PANResponse
-from services.pan_service import fetch_pan_details
-
-
-class PANVerification(Resource):
-    def post(self):
-        try:
-            data = request.get_json()
-            pan_request = PANRequest(**data)
-
-            result = fetch_pan_details(
-                pan=pan_request.pan,
-                consent=pan_request.consent,
-                lite=pan_request.lite,
-                case_id=pan_request.clientData.caseId
-            )
-
-            # ✅ Validate API response using PANResponse model
-            try:
-                validated_response = PANResponse(**result)
-                return validated_response.model_dump(), 200
-
-            except ValidationError as e:
-                # Return a clear 400 error if response doesn’t match expected schema
-                error_details = [
-                    {
-                        "field": " → ".join(str(x) for x in err["loc"]),
-                        "error": err["msg"]
-                    }
-                    for err in e.errors()
-                ]
-                return {
-                    "message": "Response validation failed",
-                    "details": error_details
-                }, 400
-
-        except ValidationError as e:
-            # Handle invalid request body
-            error_details = [
-                {
-                    "field": " → ".join(str(x) for x in err["loc"]),
-                    "error": err["msg"]
-                }
-                for err in e.errors()
-            ]
-            return {
-                "message": "Request validation failed",
-                "details": error_details
-            }, 400
-
-        except Exception as e:
-            # Catch all unexpected errors
-            return {"error": str(e)}, 500
-
+            # Otherwise, return success
+            return validated_response.model_dump(), 200
