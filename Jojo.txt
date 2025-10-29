@@ -1,12 +1,10 @@
-validated_response = PANResponse(**result)
-
-            # ✅ Optional local business rule:
-            # If the API indicates missing consent or any failure status, return 400
-            if (
-                validated_response.statusCode != 101
-                or "Consent Missing" in str(result).title()
-            ):
-                return validated_response.model_dump(), 400
-
-            # Otherwise, return success
-            return validated_response.model_dump(), 200
+ consent = N, skip hitting Karza
+            if pan_request.consent == "N":
+                fake_response = {
+                    "statusCode": 105,
+                    "requestId": str(uuid.uuid4()),  # mimic Karza’s requestId
+                    "result": {},
+                    "statusMessage": "Consent Missing",
+                    "clientData": {"caseId": pan_request.clientData.caseId}
+                }
+                return fake_response, 400
