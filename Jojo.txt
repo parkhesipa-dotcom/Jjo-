@@ -1,27 +1,31 @@
- # pan_service.py
 import requests
 from google.cloud import secretmanager
-import google.auth  # ✅ used to fetch default project automatically
 
 
 def get_secret(secret_id: str):
     """
-    Fetch secret value from GCP Secret Manager securely.
-    Automatically detects project ID using application default credentials.
+    Fetches a secret value from GCP Secret Manager.
+    No hardcoded project ID — both project and key come from secrets.
     """
-    # ✅ Get project_id dynamically (no env vars required)
-    credentials, project_id = google.auth.default()
-
+    # Step 1: Get project ID secret first
     client = secretmanager.SecretManagerServiceClient()
-    name = f"projects/{project_id}/secrets/{secret_id}/versions/latest"
-    response = client.access_secret_version(request={"name": name})
+
+    # Read the PROJECT_ID secret
+    project_id_secret = "GCP_PROJECT_ID"  # name of the secret storing your project id
+    project_id_name = f"projects/_/secrets/{project_id_secret}/versions/latest"
+    project_id_response = client.access_secret_version(request={"name": project_id_name})
+    project_id = project_id_response.payload.data.decode("UTF-8")
+
+    # Step 2: Fetch the actual secret using that project id
+    secret_name = f"projects/{project_id}/secrets/{secret_id}/versions/latest"
+    response = client.access_secret_version(request={"name": secret_name})
     return response.payload.data.decode("UTF-8")
 
 
 def fetch_pan_details(pan, consent, case_id, lite):
     print("log3")
 
-    # ✅ Fetch Karza key securely from Secret Manager
+    # ✅ Fetch secrets securely
     karza_key = get_secret("KARZA_API_KEY")
 
     url = "https://testapi.karza.in/v3/pan-profile"
