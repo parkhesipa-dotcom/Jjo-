@@ -1,30 +1,27 @@
------------------------------------------------------------
-# 🔹 Step 9 – Decrypt the RBI response (lrsResponse)
-# -----------------------------------------------------------
 try:
-    resp_json = response.json()
-    encrypted_lrs = resp_json["body"]["lrsoutput"]["lrsResponse"]
-    decrypted_lrs = aes_gcm_decrypt(encrypted_lrs, aes_key_for_encryption)
+    data = json.loads(decoded)  # First-level parse
 
-    print("\n✅ Decrypted LRS Response:")
-    print(decrypted_lrs)
+    # If 'body' is still a string (escaped JSON), parse again
+    if isinstance(data.get("body"), str):
+        data["body"] = json.loads(data["body"])
+
+    json_dt = json.dumps(data, indent=4)
+    print("Parsed JSON body:\n", json_dt)
+
+    # Safe extraction
+    body = data.get("body", {})
+    lrs_section = body.get("lrsOutput") or body.get("lrsoutput", {})
+    encrypted_lrs = lrs_section.get("lrsResponse")
+
+    if encrypted_lrs:
+        decrypted_lrs = aes_gcm_decrypt(encrypted_lrs, aes_key_for_encryption)
+        print("\n✅ Decrypted LRS Response:")
+        print(decrypted_lrs)
+    else:
+        print("⚠️ 'lrsResponse' key not found in parsed response")
+
+except json.JSONDecodeError:
+    print("Response is not pure JSON format, just decoded HTML above")
 
 except Exception as e:
-    print("\n⚠️ Decryption failed or invalid response format:", e)
-
-
-
-
-
-
-
-def aes_gcm_decrypt(encrypted_b64: str, key: bytes) -> str:
-    decoded_data = base64.b64decode(encrypted_b64)
-    iv = decoded_data[:IV_SIZE]
-    ciphertext = decoded_data[IV_SIZE:-TAG_SIZE]
-    tag = decoded_data[-TAG_SIZE:]
-    cipher = AES.new(key, AES.MODE_GCM, nonce=iv)
-    decrypted = cipher.decrypt_and_verify(ciphertext, tag)
-    return decrypted.decode("utf-8")
-
-
+    print(f"⚠️ Decryption failed or invalid response format: {e}")
