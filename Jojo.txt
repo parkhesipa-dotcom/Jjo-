@@ -1,26 +1,13 @@
-🔹 Step 9: AES-GCM Decryption for lrsResponse
+-----------------------------------------------------------
+# 🔹 Step 9 – Decrypt the RBI response (lrsResponse)
 # -----------------------------------------------------------
-def decrypt_aes_gcm(encrypted_b64: str, key: bytes) -> str:
-    decoded = base64.b64decode(encrypted_b64)
-    iv = decoded[:12]
-    ciphertext = decoded[12:-16]
-    tag = decoded[-16:]
-    cipher = AES.new(key, AES.MODE_GCM, nonce=iv)
-    decrypted_bytes = cipher.decrypt_and_verify(ciphertext, tag)
-    return decrypted_bytes.decode("utf-8")
+try:
+    resp_json = response.json()
+    encrypted_lrs = resp_json["body"]["lrsoutput"]["lrsResponse"]
+    decrypted_lrs = aes_gcm_decrypt(encrypted_lrs, aes_key_for_encryption)
 
+    print("\n✅ Decrypted LRS Response:")
+    print(decrypted_lrs)
 
-# -----------------------------------------------------------
-# 🔹 Step 10: Decrypt the RBI Response (if available)
-# -----------------------------------------------------------
-decrypted_response = None
-if data and "body" in data and "lrsOutput" in data["body"]:
-    try:
-        lrs_response_enc = data["body"]["lrsOutput"][0]["lrsResponse"]
-        decrypted_response = decrypt_aes_gcm(lrs_response_enc, aes_key_for_encryption)
-        print("\n✅ Decrypted lrsResponse:")
-        print(decrypted_response)
-    except Exception as e:
-        print("\n⚠️ Could not decrypt lrsResponse:", e)
-else:
-    print("\nℹ️ No lrsResponse found in response body.")
+except Exception as e:
+    print("\n⚠️ Decryption failed or invalid response format:", e)
