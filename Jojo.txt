@@ -11,3 +11,20 @@ try:
 
 except Exception as e:
     print("\n⚠️ Decryption failed or invalid response format:", e)
+
+
+
+
+
+
+
+def aes_gcm_decrypt(encrypted_b64: str, key: bytes) -> str:
+    decoded_data = base64.b64decode(encrypted_b64)
+    iv = decoded_data[:IV_SIZE]
+    ciphertext = decoded_data[IV_SIZE:-TAG_SIZE]
+    tag = decoded_data[-TAG_SIZE:]
+    cipher = AES.new(key, AES.MODE_GCM, nonce=iv)
+    decrypted = cipher.decrypt_and_verify(ciphertext, tag)
+    return decrypted.decode("utf-8")
+
+
