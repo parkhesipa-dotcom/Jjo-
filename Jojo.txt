@@ -1,27 +1,17 @@
-try:
-    data = json.loads(decoded)  # First-level parse
-
-    # If 'body' is still a string (escaped JSON), parse again
-    if isinstance(data.get("body"), str):
-        data["body"] = json.loads(data["body"])
-
-    json_dt = json.dumps(data, indent=4)
-    print("Parsed JSON body:\n", json_dt)
-
-    # Safe extraction
-    body = data.get("body", {})
-    lrs_section = body.get("lrsOutput") or body.get("lrsoutput", {})
-    encrypted_lrs = lrs_section.get("lrsResponse")
-
-    if encrypted_lrs:
-        decrypted_lrs = aes_gcm_decrypt(encrypted_lrs, aes_key_for_encryption)
-        print("\n✅ Decrypted LRS Response:")
-        print(decrypted_lrs)
-    else:
-        print("⚠️ 'lrsResponse' key not found in parsed response")
-
-except json.JSONDecodeError:
-    print("Response is not pure JSON format, just decoded HTML above")
-
-except Exception as e:
-    print(f"⚠️ Decryption failed or invalid response format: {e}")
+join(
+  take(
+    filter(
+      createArray(
+        formatDateTime(addMonths(outputs('ParseDueDateYYMMM'),1),'MMM yy'),
+        formatDateTime(addMonths(outputs('ParseDueDateYYMMM'),2),'MMM yy'),
+        formatDateTime(addMonths(outputs('ParseDueDateYYMMM'),3),'MMM yy')
+      ),
+      lessOrEquals(
+        ticks(parseDateTime(item())),
+        ticks(utcNow())
+      )
+    ),
+    3
+  ),
+  ', '
+)
