@@ -1,17 +1,29 @@
 join(
-  take(
-    filter(
-      createArray(
-        formatDateTime(addMonths(outputs('ParseDueDateYYMMM'),1),'MMM yy'),
-        formatDateTime(addMonths(outputs('ParseDueDateYYMMM'),2),'MMM yy'),
-        formatDateTime(addMonths(outputs('ParseDueDateYYMMM'),3),'MMM yy')
+  union(
+    if(
+      greaterOrEquals(
+        int(formatDateTime(utcNow(),'MM')),
+        add(int(formatDateTime(outputs('ParseDueDateYYMMM'),'MM')),1)
       ),
-      lessOrEquals(
-        ticks(parseDateTime(item())),
-        ticks(utcNow())
-      )
+      createArray(formatDateTime(addToTime(outputs('ParseDueDateYYMMM'),1,'Month'),'MMM yy')),
+      createArray()
     ),
-    3
+    if(
+      greaterOrEquals(
+        int(formatDateTime(utcNow(),'MM')),
+        add(int(formatDateTime(outputs('ParseDueDateYYMMM'),'MM')),2)
+      ),
+      createArray(formatDateTime(addToTime(outputs('ParseDueDateYYMMM'),2,'Month'),'MMM yy')),
+      createArray()
+    ),
+    if(
+      greaterOrEquals(
+        int(formatDateTime(utcNow(),'MM')),
+        add(int(formatDateTime(outputs('ParseDueDateYYMMM'),'MM')),3)
+      ),
+      createArray(formatDateTime(addToTime(outputs('ParseDueDateYYMMM'),3,'Month'),'MMM yy')),
+      createArray()
+    )
   ),
   ', '
 )
