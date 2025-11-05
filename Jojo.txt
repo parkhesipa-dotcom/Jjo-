@@ -1,138 +1,9 @@
-import base64, json, requests, html
-from Crypto.Cipher import AES, PKCS1_OAEP
-from Crypto.PublicKey import RSA
-from Crypto.Random import get_random_bytes
-from Crypto.Hash import SHA256
-
-IV_SIZE = 12
-TAG_SIZE = 16
-
-# RBI Public Certificate
-rbi_public_cert = """-----BEGIN PUBLIC KEY-----
-<PASTE YOUR CERT HERE>
------END PUBLIC KEY-----
-"""
-
-# -----------------------------------------
-# AES-GCM encryption/decryption utilities
-# -----------------------------------------
-def aes_gcm_encrypt(plain_text: str, key: bytes) -> str:
-    iv = get_random_bytes(IV_SIZE)
-    cipher = AES.new(key, AES.MODE_GCM, nonce=iv)
-    ciphertext, tag = cipher.encrypt_and_digest(plain_text.encode("utf-8"))
-    encrypted_bytes = iv + ciphertext + tag
-    return base64.b64encode(encrypted_bytes).decode("utf-8")
-
-
-def aes_gcm_decrypt(encrypted_b64: str, key: bytes) -> str:
-    decoded_data = base64.b64decode(encrypted_b64)
-    iv = decoded_data[:IV_SIZE]
-    tag = decoded_data[-TAG_SIZE:]
-    ciphertext = decoded_data[IV_SIZE:-TAG_SIZE]
-    cipher = AES.new(key, AES.MODE_GCM, nonce=iv)
-    decrypted = cipher.decrypt_and_verify(ciphertext, tag)
-    return decrypted.decode("utf-8")
-
-
-# -------------------------------------------------
-# Function to build encrypted payload (for /verify_lrs)
-# -------------------------------------------------
-def build_lrs_payload(pan: str, unique_id: str):
-    client_id = "<CLIENT_ID>"
-    client_secret = "<CLIENT_SECRET>"
-    api_url = "<API_URL>"
-
-    # Step 1 - AES key generation
-    aes_key = get_random_bytes(32)
-    aes_keyb64 = base64.b64encode(aes_key).decode("utf-8")
-
-    # Step 2 - Encrypt Client ID * Secret
-    client_auth_plain = f"{client_id}*{client_secret}"
-    encrypted_client_auth = aes_gcm_encrypt(client_auth_plain, aes_key)
-
-    # Step 3 - Encrypt PAN body
-    data_body = [
-        {
-            "structureRefVo": {"code": "LRSDATA", "version": 1, "agencyID": "RBI"},
-            "obs": [{"pan": [pan]}],
-        }
-    ]
-    encrypted_body = aes_gcm_encrypt(json.dumps(data_body), aes_key)
-
-    # Step 4 - Encrypt AES key with RBI public key
-    public_key = RSA.import_key(rbi_public_cert)
-    cipher_rsa = PKCS1_OAEP.new(public_key, hashAlgo=SHA256)
-    rsa_encrypted_key = cipher_rsa.encrypt(aes_keyb64.encode("utf-8"))
-    encrypted_key_data = base64.b64encode(rsa_encrypted_key).decode("utf-8")
-
-    # Step 5 - Build Final JSON
-    final_body = {
-        "header": {
-            "authinfo": {
-                "LoginParams": ["CLIENT_AUTH_INFO", encrypted_client_auth],
-                "UserType": "SYSTEM",
-                "AuthenticationType": "API_AUTH",
-                "Key_data": encrypted_key_data,
-            }
-        },
-        "body": {"LRS_body": encrypted_body, "uniqueId": unique_id},
-    }
-
-    # Return payload + AES key (needed later for decryption)
-    return final_body, aes_key, api_url
-
-
-# -------------------------------------------------
-# Function to send request to RBI and extract response
-# -------------------------------------------------
-def send_lrs_request(pan: str, unique_id: str):
-    final_body, aes_key, api_url = build_lrs_payload(pan, unique_id)
-
-    headers = {
-        "Content-Type": "application/json",
-        "Client-Id": "<CLIENT_ID>",
-        "channelkey": "key10",
-        "datatype": "application/json",
-    }
-
-    print("➡️ Sending encrypted LRS request to RBI...")
-    response = requests.post(api_url, headers=headers, json=final_body, verify=False)
-
-    print(f"Response Status Code: {response.status_code}")
-    decoded_text = html.unescape(response.text)
-    print("\nDecoded RBI Response:")
-    print(decoded_text)
-
-    try:
-        # Parse and decrypt the body
-        data = json.loads(decoded_text)
-        body = data.get("body", {})
-        lrs_section = body.get("lrsOutput", {})
-        encrypted_lrs = lrs_section.get("lrsResponse")
-
-        if encrypted_lrs:
-            decrypted_lrs = aes_gcm_decrypt(encrypted_lrs, aes_key)
-            print("\n✅ Decrypted LRS Response:")
-            print(decrypted_lrs)
-            return json.loads(decrypted_lrs)
-        else:
-            print("⚠️ 'lrsResponse' not found in RBI response")
-            return {"status": "error", "message": "'lrsResponse' not found"}
-
-    except Exception as e:
-        print(f"⚠️ Decryption failed or invalid format: {e}")
-        return {"status": "error", "message": str(e)}
-
-
-
-
-
-
 from flask import request
 from flask_restful import Resource
 from pydantic import ValidationError
 from models.lrs_model import LRSRequest
-from services.lrs_service import send_lrs_request
+from services.lrs_service import fetch_lrs_data
+
 
 class LRSVerification(Resource):
     def post(self):
@@ -140,13 +11,10 @@ class LRSVerification(Resource):
             data = request.get_json()
             validated = LRSRequest(**data)
 
-            # 🔹 Now sends to RBI and decrypts response
-            decrypted_response = send_lrs_request(validated.pan, validated.uniqueId)
-
-            return decrypted_response, 200
+            result = fetch_lrs_data(validated.pan, validated.uniqueId)
+            return result, 200
 
         except ValidationError as e:
             return {"error": e.errors()}, 400
         except Exception as e:
             return {"error": str(e)}, 500
-
