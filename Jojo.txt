@@ -1,12 +1,12 @@
 join(
   filter(
     createArray(
-      formatDateTime(addToTime(outputs('ParseDueDateYYMMM'),1,'Month'),'MMM yy'),
-      formatDateTime(addToTime(outputs('ParseDueDateYYMMM'),2,'Month'),'MMM yy'),
-      formatDateTime(addToTime(outputs('ParseDueDateYYMMM'),3,'Month'),'MMM yy')
+      formatDateTime(addToTime(outputs('ParseDueDateYYMMM'),1,'Month'),'MMM-yy'),
+      formatDateTime(addToTime(outputs('ParseDueDateYYMMM'),2,'Month'),'MMM-yy'),
+      formatDateTime(addToTime(outputs('ParseDueDateYYMMM'),3,'Month'),'MMM-yy')
     ),
     lessOrEquals(
-      ticks(parseDateTime(item())),
+      ticks(addToTime(outputs('ParseDueDateYYMMM'),0,'Month')),
       ticks(utcNow())
     )
   ),
