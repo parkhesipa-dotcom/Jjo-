@@ -1,20 +1,14 @@
-from flask import request
-from flask_restful import Resource
-from pydantic import ValidationError
-from models.lrs_model import LRSRequest
-from services.lrs_service import fetch_lrs_data
-
-
-class LRSVerification(Resource):
-    def post(self):
-        try:
-            data = request.get_json()
-            validated = LRSRequest(**data)
-
-            result = fetch_lrs_data(validated.pan, validated.uniqueId)
-            return result, 200
-
-        except ValidationError as e:
-            return {"error": e.errors()}, 400
-        except Exception as e:
-            return {"error": str(e)}, 500
+join(
+  filter(
+    createArray(
+      formatDateTime(addToTime(outputs('ParseDueDateYYMMM'),1,'Month'),'MMM yy'),
+      formatDateTime(addToTime(outputs('ParseDueDateYYMMM'),2,'Month'),'MMM yy'),
+      formatDateTime(addToTime(outputs('ParseDueDateYYMMM'),3,'Month'),'MMM yy')
+    ),
+    lessOrEquals(
+      ticks(parseDateTime(item())),
+      ticks(utcNow())
+    )
+  ),
+  ', '
+)
