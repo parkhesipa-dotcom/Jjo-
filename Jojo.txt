@@ -1,8 +1,29 @@
 join(
   union(
-    if(lessOrEquals(ticks(addToTime(outputs('ParseDueDateYYMMM'),1,'Month')), ticks(utcNow())), createArray(formatDateTime(addToTime(outputs('ParseDueDateYYMMM'),1,'Month'),'MMM-yy')), createArray()),
-    if(lessOrEquals(ticks(addToTime(outputs('ParseDueDateYYMMM'),2,'Month')), ticks(utcNow())), createArray(formatDateTime(addToTime(outputs('ParseDueDateYYMMM'),2,'Month'),'MMM-yy')), createArray()),
-    if(lessOrEquals(ticks(addToTime(outputs('ParseDueDateYYMMM'),3,'Month')), ticks(utcNow())), createArray(formatDateTime(addToTime(outputs('ParseDueDateYYMMM'),3,'Month'),'MMM-yy')), createArray())
+    if(
+      lessOrEquals(
+        ticks(addToTime(outputs('ParseDueDateYYMMM'),1,'Month')),
+        ticks(utcNow())
+      ),
+      createArray(formatDateTime(addToTime(outputs('ParseDueDateYYMMM'),1,'Month'),'MMM-yy')),
+      json('[]')
+    ),
+    if(
+      lessOrEquals(
+        ticks(addToTime(outputs('ParseDueDateYYMMM'),2,'Month')),
+        ticks(utcNow())
+      ),
+      createArray(formatDateTime(addToTime(outputs('ParseDueDateYYMMM'),2,'Month'),'MMM-yy')),
+      json('[]')
+    ),
+    if(
+      lessOrEquals(
+        ticks(addToTime(outputs('ParseDueDateYYMMM'),3,'Month')),
+        ticks(utcNow())
+      ),
+      createArray(formatDateTime(addToTime(outputs('ParseDueDateYYMMM'),3,'Month'),'MMM-yy')),
+      json('[]')
+    )
   ),
   ', '
 )
