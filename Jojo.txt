@@ -1,29 +1,21 @@
-join(
-  union(
-    if(
-      lessOrEquals(
-        ticks(addToTime(outputs('ParseDueDateYYMMM'),1,'Month')),
-        ticks(utcNow())
-      ),
-      createArray(formatDateTime(addToTime(outputs('ParseDueDateYYMMM'),1,'Month'),'MMM-yy')),
-      json('[]')
-    ),
-    if(
-      lessOrEquals(
-        ticks(addToTime(outputs('ParseDueDateYYMMM'),2,'Month')),
-        ticks(utcNow())
-      ),
-      createArray(formatDateTime(addToTime(outputs('ParseDueDateYYMMM'),2,'Month'),'MMM-yy')),
-      json('[]')
-    ),
-    if(
-      lessOrEquals(
-        ticks(addToTime(outputs('ParseDueDateYYMMM'),3,'Month')),
-        ticks(utcNow())
-      ),
-      createArray(formatDateTime(addToTime(outputs('ParseDueDateYYMMM'),3,'Month'),'MMM-yy')),
-      json('[]')
-    )
-  ),
-  ', '
-)
+Got it 👍 — here’s your final, fully updated version including that the Buyer Bearing automation saved 182 hours annually, phrased naturally and professionally:
+
+⸻
+
+This year has been a strong learning experience where I successfully delivered six automation projects — five using Python and one using Power Platform. Each project improved process efficiency, accuracy, and enhanced my analytical and technical skills. I worked across Python, Power Platform, GCP, and API development, gaining a deeper understanding of data quality, cloud infrastructure, and collaboration. Initially, I faced challenges in managing multiple tasks and maintaining clear communication, but through each project I significantly improved my ability to organize work, coordinate with stakeholders, and manage timelines effectively while maintaining focus on quality.
+
+Key Projects and Achievements:
+	•	CRS/FATCA Automation: This was one of my most impactful projects and was personally appreciated by our CEO for its strong business impact. The automation eliminated manual errors, ensured accurate reporting, and saved around 2,100 hours annually.
+	•	Power Platform Mail Draft Automation: Automated the mail drafting process, saving about 4,000 hours per year and improving reminder accuracy through logical validations and better data handling.
+	•	GST PDF Extraction and Reconciliation (Python): Built a utility to extract data from GST PDFs and generate reconciliation and BDC reports, allowing the team to focus more on filing activities.
+	•	MergeQV File Preparation Automation: Automated weekend file preparation, enabling the team to complete the task beforehand and improving turnaround time.
+	•	Buyer Bearing Customer Report Generation: Automated the report preparation for each customer, ensuring accurate calculations and removing manual errors. The automation saved around 182 hours annually and resolved data inconsistencies by applying a standardized naming format. Despite frequent requirement changes, the project was delivered on time with accurate results.
+	•	EY ART BAU Maintenance: Supported cloud maintenance and BAU activities, strengthening my understanding of cloud operations and deployment management.
+
+The overall impact of these automations was the elimination of manual errors, reduction in repetitive mail efforts, maintenance of data quality, and improved efficiency across multiple processes. Working on these projects helped me understand data more deeply and enhanced my analytical thinking, project management, and stakeholder management skills.
+
+While I have improved my project management capabilities, I recognize that my documentation practices can be made more structured and consistent. In the next cycle, I aim to focus on learning AI technologies, enhancing my documentation skills, improving time management, and gaining knowledge in the basics of cybersecurity. I also plan to pursue certifications in CAPM, Terraform, and Kubernetes to strengthen my project management and cloud automation capabilities while continuing to contribute to innovation and operational excellence.
+
+⸻
+
+Would you like me to make this shorter (around 1,000–1,200 characters) so you can paste it directly into the performance review portal summary field?
