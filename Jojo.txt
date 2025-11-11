@@ -1,1 +1,8 @@
 
+df_ms = pd.merge(
+    df_a[['Consumer Ref No', 'Scheme Code', 'Amount']],   # from CSV
+    df_ns[['Consumer Ref no', 'Amount']],                 # from NPCI
+    left_on='Consumer Ref No',                            # CSV key
+    right_on='Consumer Ref no',                           # NPCI key
+    how='inner'
+)
