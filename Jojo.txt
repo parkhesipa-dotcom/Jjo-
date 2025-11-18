@@ -1,8 +1,61 @@
+# controllers/bulk_controller.py
+import time
+from flask_restful import Resource
+from flask import request
+from pydantic import ValidationError
+from bulk_models import BulkPANRequest
+from services.pan_service import fetch_pan_details
 
-df_ms = pd.merge(
-    df_a[['Consumer Ref No', 'Scheme Code', 'Amount']],   # from CSV
-    df_ns[['Consumer Ref no', 'Amount']],                 # from NPCI
-    left_on='Consumer Ref No',                            # CSV key
-    right_on='Consumer Ref no',                           # NPCI key
-    how='inner'
-)
+
+class BulkPANVerification(Resource):
+    def post(self):
+        try:
+            body = request.get_json()
+            req = BulkPANRequest(**body)
+
+            results = []
+
+            for pan in req.panList:
+                attempt = 0
+                response = None
+                success = False
+
+                while attempt < 3 and not success:
+                    response = fetch_pan_details(
+                        pan=pan,
+                        consent="Y",
+                        lite="Y",
+                        case_id="BULK_CASE"
+                    )
+
+                    # Karza rate limit
+                    if isinstance(response, dict) and response.get("statusCode") == 429:
+                        time.sleep((attempt + 1) * 2)
+                        attempt += 1
+                        continue
+
+                    # If result exists → success
+                    if isinstance(response, dict) and "result" in response:
+                        success = True
+                        break
+
+                    attempt += 1
+                    time.sleep(1)
+
+                if success:
+                    results.append({
+                        "pan": pan,
+                        "name": response["result"].get("name")
+                    })
+                else:
+                    results.append({
+                        "pan": pan,
+                        "name": None,
+                        "error": "Failed after 3 attempts",
+                        "details": str(response)
+                    })
+
+            return {"results": results}, 200
+
+        except ValidationError as e:
+            return {"error": e.errors()}, 400
