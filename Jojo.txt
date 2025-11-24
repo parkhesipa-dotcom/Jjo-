@@ -1,61 +1,43 @@
-# controllers/bulk_controller.py
-import time
-from flask_restful import Resource
-from flask import request
-from pydantic import ValidationError
-from bulk_models import BulkPANRequest
-from services.pan_service import fetch_pan_details
+# 1. Identify email columns
+email_cols = [col for col in tdq_df.columns if str(col).lower().startswith('email_address')]
 
+# 2. Filter PANs for deductee code = 1 or 01
+deductee01_df = unique_pan_df[
+    unique_pan_df['deductee_code'].astype(str).str.strip().str.endswith(('1', '01'))
+][['pan']].rename(columns={'pan': 'pan_ref'})   # rename so merge identifies match
 
-class BulkPANVerification(Resource):
-    def post(self):
-        try:
-            body = request.get_json()
-            req = BulkPANRequest(**body)
+# 3. Merge PAN + email columns with deductee PANs
+deductee01_with_email = pd.merge(
+    tdq_df[['pan'] + email_cols],
+    deductee01_df,
+    how='left',
+    left_on='pan',
+    right_on='pan_ref'
+)
 
-            results = []
+# 4. Check if PAN matched (pan_ref exists)
+deductee01_with_email['pan_match'] = deductee01_with_email['pan_ref'].notna()
 
-            for pan in req.panList:
-                attempt = 0
-                response = None
-                success = False
+# 5. Check if any email exists
+def has_any_email(row):
+    for col in email_cols:
+        val = str(row.get(col, '')).strip().lower()
+        if val and val not in ['', 'nan', 'na', 'none']:
+            return True
+    return False
 
-                while attempt < 3 and not success:
-                    response = fetch_pan_details(
-                        pan=pan,
-                        consent="Y",
-                        lite="Y",
-                        case_id="BULK_CASE"
-                    )
+deductee01_with_email['has_email'] = deductee01_with_email.apply(has_any_email, axis=1)
 
-                    # Karza rate limit
-                    if isinstance(response, dict) and response.get("statusCode") == 429:
-                        time.sleep((attempt + 1) * 2)
-                        attempt += 1
-                        continue
+# 6. Final classification
 
-                    # If result exists → success
-                    if isinstance(response, dict) and "result" in response:
-                        success = True
-                        break
+# IF PAN matches & has email = CORP
+email_corp_pans = deductee01_with_email[
+    (deductee01_with_email['pan_match'] == True) &
+    (deductee01_with_email['has_email'] == True)
+]['pan'].unique()
 
-                    attempt += 1
-                    time.sleep(1)
-
-                if success:
-                    results.append({
-                        "pan": pan,
-                        "name": response["result"].get("name")
-                    })
-                else:
-                    results.append({
-                        "pan": pan,
-                        "name": None,
-                        "error": "Failed after 3 attempts",
-                        "details": str(response)
-                    })
-
-            return {"results": results}, 200
-
-        except ValidationError as e:
-            return {"error": e.errors()}, 400
+# IF PAN mismatch OR no email = PHYSICAL
+physical_corp_pans = deductee01_with_email[
+    (deductee01_with_email['pan_match'] == False) |
+    (deductee01_with_email['has_email'] == False)
+]['pan'].unique()
